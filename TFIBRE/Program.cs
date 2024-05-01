@@ -1,144 +1,117 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 class Node
 {
-    public bool visited;
     public int index;
     public string name;
     public List<Node> connections;
+    public Node parent;
+    public int rank;
 
     public Node(int i, string n)
     {
         index = i;
         name = n;
         connections = new List<Node>();
+        parent = this;
+        rank = 0;
     }
 
-    public void PutNewConnection(Node nodeAddress)
+    public void AddConnection(Node nodeAddress)
     {
         connections.Add(nodeAddress);
     }
 
-    public void Flood(string seekNodeName)
+    public Node Find()
     {
-        if (visited || Program.nodeIsFound)
+        if (this.parent != this)
+            this.parent = this.parent.Find();
+        return this.parent;
+    }
+
+    public void Union(Node node)
+    {
+        Node root1 = this.Find();
+        Node root2 = node.Find();
+
+        if (root1 == root2)
             return;
 
-        visited = true;
-
-        foreach (Node connection in connections)
+        if (root1.rank < root2.rank)
         {
-            if (connection.name == seekNodeName)
-            {
-                connection.visited = true;
-                Program.nodeIsFound = true;
-                break;
-            }
-            else
-                connection.Flood(seekNodeName);
+            root1.parent = root2;
+        }
+        else if (root1.rank > root2.rank)
+        {
+            root2.parent = root1;
+        }
+        else
+        {
+            root2.parent = root1;
+            root1.rank++;
         }
     }
 
-    public void ShowConnections()
+    public bool IsConnectedTo(Node node)
     {
-        foreach (Node connection in connections)
-        {
-            Console.WriteLine($"{name} has connection with: {connection.name}");
-        }
+        return this.Find() == node.Find();
     }
 }
 
 class Program
 {
-    public static bool nodeIsFound;
-    static string seekNodeName;
-    static List<string> addTab = new List<string>();
-    static List<Node> nodesTab = new List<Node>();
+    static Dictionary<string, Node> network = new Dictionary<string, Node>();
 
-    static void PutNewAddress(string address)
+    static void AddNode(string name)
     {
-        if (!addTab.Contains(address))
+        if (!network.ContainsKey(name))
         {
-            int indx = nodesTab.Count;
-            addTab.Add(address);
-            nodesTab.Add(new Node(indx, address));
+            Node newNode = new Node(network.Count, name);
+            network.Add(name, newNode);
         }
     }
 
-    static Tuple<int, int> ReturnIndexOfAddress(string addA, string addB)
+    static void AddConnection(string addressA, string addressB)
     {
-        int indexA = -1, indexB = -1;
-
-        for (int i = 0; i < addTab.Count; i++)
-        {
-            if (indexA != -1 && indexB != -1)
-                break;
-            else
-            {
-                if (addTab[i] == addA)
-                    indexA = i;
-                if (addTab[i] == addB)
-                    indexB = i;
-            }
-        }
-
-        return Tuple.Create(indexA, indexB);
+        Node nodeA = network[addressA];
+        Node nodeB = network[addressB];
+        nodeA.AddConnection(nodeB);
+        nodeB.AddConnection(nodeA);
+        nodeA.Union(nodeB);
     }
 
-    static void PutNewConnection(string addA, string addB)
+    static bool CheckConnection(string addressA, string addressB)
     {
-        Tuple<int, int> indexes = ReturnIndexOfAddress(addA, addB);
-        int indexA = indexes.Item1;
-        int indexB = indexes.Item2;
-
-        Node AAddress = nodesTab[indexA];
-        Node BAddress = nodesTab[indexB];
-
-        BAddress.PutNewConnection(AAddress);
-        AAddress.PutNewConnection(BAddress);
-    }
-
-    static bool CheckConnection(string addA, string addB)
-    {
-        nodeIsFound = false;
-        seekNodeName = addB;
-
-        Tuple<int, int> indexes = ReturnIndexOfAddress(addA, addB);
-        int indexA = indexes.Item1;
-        int indexB = indexes.Item2;
-
-        if (indexA == -1 || indexB == -1)
+        if (!network.ContainsKey(addressA) || !network.ContainsKey(addressB))
             return false;
 
-        foreach (Node node in nodesTab)
-        {
-            node.visited = false;
-        }
+        Node nodeA = network[addressA];
+        Node nodeB = network[addressB];
 
-        nodesTab[indexA].Flood(seekNodeName);
-
-        return nodesTab[indexB].visited;
+        return nodeA.IsConnectedTo(nodeB);
     }
 
     static void Main(string[] args)
     {
-        char opCode;
-        while (char.TryParse(Console.ReadLine(), out opCode))
+        string line;
+        while ((line = Console.ReadLine()) != null)
         {
-            string addA = Console.ReadLine();
-            string addB = Console.ReadLine();
+            string[] parts = line.Split();
+            char operation = parts[0][0];
+            string addressA = parts[1];
+            string addressB = parts[2];
 
-            switch (opCode)
+            switch (operation)
             {
                 case 'B':
-                    PutNewAddress(addA);
-                    PutNewAddress(addB);
-                    PutNewConnection(addA, addB);
+                    AddNode(addressA);
+                    AddNode(addressB);
+                    AddConnection(addressA, addressB);
                     break;
 
                 case 'T':
-                    if (CheckConnection(addA, addB))
+                    if (CheckConnection(addressA, addressB))
                         Console.WriteLine("T");
                     else
                         Console.WriteLine("N");
